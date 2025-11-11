@@ -52,6 +52,8 @@ for pair in POSE_PAIRS:
         cv2.circle(frame, points[partA], 8, (0, 0, 255), thickness=-1, lineType=cv2.FILLED)
         cv2.circle(frame, points[partB], 8, (0, 0, 255), thickness=-1, lineType=cv2.FILLED)
 
+result_path = 'results/singleImage/'
+
 # 保存图片
-cv2.imwrite('Keypoints.jpg', frame_copy)
-cv2.imwrite('lines.jpg', frame)
+cv2.imwrite(result_path + 'Keypoints.jpg', frame_copy)
+cv2.imwrite(result_path + 'lines.jpg', frame)

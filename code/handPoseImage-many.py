@@ -64,7 +64,7 @@ for img in os.listdir(train_data_path):
     # cv2.imshow('Output-Skeleton', frame)
     #
     # cv2.imwrite('Output-Keypoints.jpg', frame_copy)
-    cv2.imwrite('results/' + img, frame)
+    cv2.imwrite('results/multipleImage/' + img, frame)
 
     print("Total time taken : {:.3f}".format(time.time() - t))
 
