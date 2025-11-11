@@ -1,4 +1,4 @@
 .idea/
 __pycache__
-code/hand/
-code/results/
+caffe_model/hand/
+caffe_model/results/
