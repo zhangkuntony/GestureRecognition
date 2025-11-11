@@ -1,71 +1,54 @@
-from __future__ import division
 import cv2
 import time
-import numpy as np
 import os
+from handPoseBase import HandPoseBase
 
-protoFile = "hand/pose_deploy.prototxt"
-weightsFile = "hand/pose_iter_102000.caffemodel"
-nPoints = 22
-POSE_PAIRS = [ [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20] ]
-net = cv2.dnn.readNetFromCaffe(protoFile, weightsFile)
-train_data_path = 'images/'
-for img in os.listdir(train_data_path):
-    frame = cv2.imread(train_data_path + img)
-    frame_copy = np.copy(frame)
-    frame_width = frame.shape[1]
-    frame_height = frame.shape[0]
-    aspect_ratio = frame_width / frame_height
+def process_multiple_images():
+    """处理多张图像"""
+    # 初始化手势识别器
+    hand_pose = HandPoseBase(threshold=0.1)
+    
+    # 图像文件夹路径
+    train_data_path = 'images/'
+    output_path = 'results/multipleImage/'
+    
+    # 确保输出目录存在
+    os.makedirs(output_path, exist_ok=True)
+    
+    # 获取所有图像文件
+    image_files = [f for f in os.listdir(train_data_path) 
+                  if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+    
+    print(f"找到 {len(image_files)} 张图像")
+    
+    for img_file in image_files:
+        start_at = time.time()
+        
+        # 构建完整路径
+        image_path = os.path.join(train_data_path, img_file)
+        
+        try:
+            # 处理单张图像
+            original_frame, keypoints_image, skeleton_image, points = hand_pose.process_single_image(image_path)
+            
+            # 检测到的关键点数量
+            detected_points = len([p for p in points if p is not None])
+            
+            # 保存骨架图像
+            output_file = os.path.join(output_path, img_file)
+            cv2.imwrite(output_file, skeleton_image)
+            
+            processing_time = time.time() - start_at
+            
+            print(f"图像 {img_file}: 检测到 {detected_points} 个关键点, 处理时间: {processing_time:.3f}秒")
+            
+        except Exception as e:
+            print(f"处理图像 {img_file} 时发生错误: {e}")
 
-    threshold = 0.1
-
-    t = time.time()
-    # input image dimensions for the network
-    in_height = 368
-    in_width = int(((aspect_ratio * in_height) * 8) // 8)
-    inp_blob = cv2.dnn.blobFromImage(frame, 1.0 / 255, (in_width, in_height), (0, 0, 0), swapRB=False, crop=False)
-
-    net.setInput(inp_blob)
-
-    output = net.forward()
-    print("time taken by network : {:.3f}".format(time.time() - t))
-
-    # Empty list to store the detector keypoints
-    points = []
-
-    for i in range(nPoints):
-        # confidence map of corresponding body's part.
-        probMap = output[0, i, :, :]
-        probMap = cv2.resize(probMap, (frame_width, frame_height))
-
-        # Find global maxima of the probMap.
-        minVal, prob, minLoc, point = cv2.minMaxLoc(probMap)
-
-        if prob > threshold:
-            cv2.circle(frame_copy, (int(point[0]), int(point[1])), 8, (0, 255, 255), thickness=-1, lineType=cv2.FILLED)
-            cv2.putText(frame_copy, "{}".format(i), (int(point[0]), int(point[1])), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2, lineType=cv2.LINE_AA)
-
-            # Add the point to the list if the probability is greater than the threshold
-            points.append((int(point[0]), int(point[1])))
-        else:
-            points.append(None)
-
-    # Draw Skeleton
-    for pair in POSE_PAIRS:
-        partA = pair[0]
-        partB = pair[1]
-
-        if points[partA] and points[partB]:
-            cv2.line(frame, points[partA], points[partB], (0, 255, 255), 2)
-            cv2.circle(frame, points[partA], 8, (0, 0, 255), thickness=-1, lineType=cv2.FILLED)
-            cv2.circle(frame, points[partB], 8, (0, 0, 255), thickness=-1, lineType=cv2.FILLED)
-
-    # cv2.imshow('Output-Keypoints', frame_copy)
-    # cv2.imshow('Output-Skeleton', frame)
-    #
-    # cv2.imwrite('Output-Keypoints.jpg', frame_copy)
-    cv2.imwrite('results/multipleImage/' + img, frame)
-
-    print("Total time taken : {:.3f}".format(time.time() - t))
-
-    # cv2.waitKey(0)
+if __name__ == "__main__":
+    start_time = time.time()
+    
+    process_multiple_images()
+    
+    total_time = time.time() - start_time
+    print(f"所有图像处理完成，总耗时: {total_time:.3f}秒")

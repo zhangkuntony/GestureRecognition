@@ -1,91 +1,114 @@
 import cv2
 import time
-import numpy as np
+from handPoseBase import HandPoseBase, draw_keypoints
 
-protoFile = "hand/pose_deploy.prototxt"
-weightsFile = "hand/pose_iter_102000.caffemodel"
-nPoints = 22
-POSE_PAIRS = [ [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20] ]
+class HandPoseCamera:
+    """基于摄像头的手势识别"""
+    
+    def __init__(self, input_source=0, threshold=0.2):
+        """
+        初始化摄像头手势识别器
+        
+        Args:
+            input_source: 摄像头输入源 (0为默认摄像头)
+            threshold: 关键点检测阈值
+        """
+        self.input_source = input_source
+        self.hand_pose = HandPoseBase(threshold=threshold)
+        self.cap = cv2.VideoCapture(self.input_source)
+        
+        # 获取摄像头参数
+        has_frame, frame = self.cap.read()
+        if not has_frame:
+            raise ValueError("无法从摄像头读取视频")
+        
+        self.frame_width = frame.shape[1]
+        self.frame_height = frame.shape[0]
+        
+        # 初始化视频写入器
+        self.vid_writer = cv2.VideoWriter('results/cameraOutput/output.avi', 
+                                         cv2.VideoWriter.fourcc('M', 'J', 'P', 'G'),
+                                         15, (self.frame_width, self.frame_height))
+    
+    def process_frame(self, frame):
+        """
+        处理单个视频帧
+        
+        Args:
+            frame: 输入视频帧
+            
+        Returns:
+            tuple: (处理后的骨架图像, 关键点图像, 关键点列表)
+        """
+        start_time = time.time()
+        
+        # 检测关键点
+        output, points = self.hand_pose.detect_keypoints(frame)
+        
+        # 绘制关键点
+        keypoints_image = draw_keypoints(frame, points, radius=6)
+        
+        # 绘制骨架
+        skeleton_image = self.hand_pose.draw_skeleton(frame, points, 
+                                                    line_thickness=2, point_radius=5)
+        
+        processing_time = time.time() - start_time
+        print(f"帧处理时间: {processing_time:.3f}秒")
+        
+        return skeleton_image, keypoints_image, points
+    
+    def run(self):
+        """运行摄像头手势识别"""
+        k = 0
+        print("开始手势识别，按ESC键退出...")
+        
+        while True:
+            k += 1
+            start_time = time.time()
+            
+            # 读取帧
+            has_frame, frame = self.cap.read()
+            if not has_frame:
+                break
+            
+            # 处理帧
+            skeleton_image, keypoints_image, points = self.process_frame(frame)
+            
+            # 显示结果
+            cv2.imshow('Hand Pose - Skeleton', skeleton_image)
+            
+            # 检测按键
+            key = cv2.waitKey(1) & 0xFF
+            if key == 27:  # ESC键
+                break
+            
+            # 写入视频
+            self.vid_writer.write(skeleton_image)
+            
+            total_time = time.time() - start_time
+            print(f"总帧处理时间: {total_time:.3f}秒")
+    
+    def __del__(self):
+        """清理资源"""
+        if hasattr(self, 'cap'):
+            self.cap.release()
+        if hasattr(self, 'vid_writer'):
+            self.vid_writer.release()
+        cv2.destroyAllWindows()
 
-threshold = 0.2
-
-input_source = 0
-cap = cv2.VideoCapture(input_source)
-hasFrame, frame = cap.read()
-
-frame_width = frame.shape[1]
-frame_height = frame.shape[0]
-
-aspect_ratio = frame_width / frame_height
-
-in_height = 368
-in_width = int(((aspect_ratio * in_height) * 8) // 8)
-
-vid_writer = cv2.VideoWriter('results/cameraOutput/output.avi', cv2.VideoWriter.fourcc('M', 'J', 'P', 'G'), 15, (frame.shape[1], frame.shape[0]))
-
-net = cv2.dnn.readNetFromCaffe(protoFile, weightsFile)
-k = 0
-while 1:
-    k += 1
-    t = time.time()
-    hasFrame, frame = cap.read()
-    frame_copy = np.copy(frame)
-    if not hasFrame:
-        cv2.waitKey()
-        break
-
-    inp_blob = cv2.dnn.blobFromImage(frame, 1.0 / 255, (in_width, in_height), (0, 0, 0), swapRB=False, crop=False)
-
-    net.setInput(inp_blob)
-
-    output = net.forward()
-
-    print("forward = {}".format(time.time() - t))
-
-    # Empty list to store the detected keypoints
-    points = []
-
-    for i in range(nPoints):
-        # confidence map of corresponding body's part
-        probMap = output[0, i, :, :]
-        probMap = cv2.resize(probMap, (frame_width, frame_height))
-
-        # Find global maxima of the probMap.
-        minVal, prob, minLoc, point = cv2.minMaxLoc(probMap)
-
-        if prob > threshold:
-            cv2.circle(frame_copy, (int(point[0]), int(point[1])), 6, (0, 255, 255), thickness=-1, lineType=cv2.FILLED)
-            cv2.putText(frame_copy, "{}".format(i), (int(point[0]), int(point[1])), cv2.FONT_HERSHEY_SIMPLEX, 8, (0, 0, 255), 2, lineType=cv2.LINE_AA)
-
-            # Add the point to the list if the probability is greater than the threshold
-            points.append((int(point[0]), int(point[1])))
-        else:
-            points.append(None)
-
-    # Draw Skeleton
-    for pair in POSE_PAIRS:
-        partA = pair[0]
-        partB = pair[1]
-
-        if points[partA] and points[partB]:
-            cv2.line(frame, points[partA], points[partB], (0, 255, 255), 2, lineType=cv2.LINE_AA)
-            cv2.circle(frame, points[partA], 5, (0, 0, 255), thickness=-1, lineType=cv2.FILLED)
-            cv2.circle(frame, points[partB], 5, (0, 0, 255), thickness=-1, lineType=cv2.FILLED)
-
-    print("Time Taken for frame = {}".format(time.time() - t))
-
-    # cv2.putText(frame, "time taken = {:.2f} sec".format(time.time() - t), (50, 50), cv2.FONT_HERSHEY_COMPLEX, .8, (255, 50, 0), 2, lineType=cv2.LINE_AA)
-    # cv2.putText(frame, "Hand Pose using OpenCV", (50, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 50, 0), 2, lineType=cv2.LINE_AA)
-    cv2.imshow('Output-Skeleton', frame)
-    # cv2.imwrite("video_output/{:03d}.jpg".format(k), frame)
-    key = cv2.waitKey(1)
-    if key == 27:
-        break
-
-    print("total = {}".format(time.time() - t))
-    vid_writer.write(frame)
-
-vid_writer.release()
+# 主程序
+if __name__ == "__main__":
+    try:
+        # 创建手势识别器
+        hand_pose_camera = HandPoseCamera(input_source=0, threshold=0.2)
+        
+        # 运行手势识别
+        hand_pose_camera.run()
+        
+    except Exception as e:
+        print(f"发生错误: {e}")
+    finally:
+        print("程序结束")
 
 
 
