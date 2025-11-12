@@ -1,3 +1,6 @@
+# 关键点分类器类
+# 使用 TensorFlow Lite 模型进行手部关键点静态手势识别
+
 import numpy as np
 import tensorflow as tf
 

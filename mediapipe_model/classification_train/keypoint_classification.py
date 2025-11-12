@@ -1,3 +1,6 @@
+# 关键点分类器训练脚本
+# 训练基于手部21个关键点的静态手势分类模型
+
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.model_selection import train_test_split
 
@@ -55,16 +58,30 @@ print(np.squeeze(predict_result))
 print(np.argmax(np.squeeze(predict_result)))
 
 def print_confusion_matrix(y_true, y_pred, report=True):
+    """
+    打印混淆矩阵和分类报告
+    
+    参数:
+    y_true: 真实标签数组
+    y_pred: 预测标签数组  
+    report: 是否打印详细分类报告（默认True）
+    """
+    # 获取唯一的标签并排序
     labels = sorted(list(set(y_true)))
+    
+    # 计算混淆矩阵
     cmx_data = confusion_matrix(y_true, y_pred, labels=labels)
 
+    # 将混淆矩阵转换为DataFrame便于显示
     df_cmx = pd.DataFrame(cmx_data, index=labels, columns=labels)
 
+    # 创建热力图可视化混淆矩阵
     fig, ax = plt.subplots(figsize=(7, 6))
     sns.heatmap(df_cmx, annot=True, fmt='g', square=False)
-    ax.set_ylim(len(set(y_true)), 0)
+    ax.set_ylim(len(set(y_true)), 0)  # 调整y轴范围
     plt.show()
 
+    # 如果需要，打印详细分类报告
     if report:
         print('Classification Report')
         print(classification_report(y_test, y_pred))

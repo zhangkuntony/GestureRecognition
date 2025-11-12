@@ -1,3 +1,6 @@
+# 轨迹历史分类器类
+# 使用 TensorFlow Lite 模型进行手部轨迹历史识别
+
 import numpy as np
 import tensorflow as tf
 

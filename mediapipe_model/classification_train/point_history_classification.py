@@ -1,3 +1,9 @@
+# 轨迹历史分类器训练脚本
+# 训练基于手部关键点历史轨迹的动态手势分类模型
+
+# 轨迹历史分类器训练脚本
+# 训练基于手部关键点历史轨迹的动态手势分类模型
+
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.model_selection import train_test_split
 
