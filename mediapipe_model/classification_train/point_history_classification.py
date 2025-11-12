@@ -10,7 +10,7 @@ import tensorflow as tf
 RANDOM_SEED = 42
 
 dataset = '../model/point_history_classifier/point_history.csv'
-model_save_path = '../model/keypoint_classifier/keypoint_classifier.keras'
+model_save_path = '../model/point_history_classifier/point_history_classifier.keras'
 
 NUM_CLASSES = 4
 
